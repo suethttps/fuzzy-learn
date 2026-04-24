@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.express as px
-from sklearn.datasets import make_blobs
 import sys
 sys.path.insert(0, '/home/soethe/codeneed_workspace/fuzzy-learn')
 
@@ -229,7 +228,7 @@ elif menu == "Sistema de Altura e Persistência":
         altura = st.slider("Altura (cm):", 130, 210, 175)
     
     with col2:
-        persistencia = st.slider("Persistência (0-10):", 0, 10, 5, step=0.5)
+        persistencia = st.slider("Persistência (0-10):", 0.0, 10.0, 5.0, step=0.5)
     
     resultado = system.evaluate(altura, persistencia)
     
