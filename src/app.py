@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.express as px
 import sys
-sys.path.insert(0, '/home/soethe/codeneed_workspace/fuzzy-learn')
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.fuzzy_logic import FuzzySystem, HeightPersistenceSystem
 
