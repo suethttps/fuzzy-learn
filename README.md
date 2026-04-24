@@ -18,17 +18,38 @@ Um aplicativo interativo para aprender e explorar **Lógica Fuzzy** usando Pytho
 cd /home/soethe/codeneed_workspace/fuzzy-learn
 ```
 
-### 2. Instale as dependências
+### 2. Criar um ambiente virtual Python (venv)
+
+**No Linux/macOS:**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+**No Windows:**
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+Você saberá que o venv está ativo quando a linha de comando mostrar `(.venv)` no início.
+
+### 3. Instale as dependências
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Execute o Streamlit
+### 4. Execute o Streamlit
 ```bash
 streamlit run src/app.py
 ```
 
 O aplicativo abrirá em `http://localhost:8501`
+
+### 5. Desativar o venv (quando terminar)
+```bash
+deactivate
+```
 
 ## 📖 Como Usar
 
@@ -134,6 +155,61 @@ Use este projeto para entender:
 - Todos os dados são processados localmente
 - Interface simples e intuitiva
 - Gráficos interativos em tempo real
+
+## 🔧 Troubleshooting
+
+### Problemas com venv
+
+**Problema**: `python3 command not found` / `python command not found`  
+**Solução**: Verifique se Python está instalado: `python --version` ou `python3 --version`
+
+**Problema**: venv já criado mas não ativa  
+**Solução**: Remova e recrie:
+```bash
+rm -rf .venv
+python3 -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+```
+
+**Problema**: Ainda recebe "command not found" após ativar venv  
+**Solução**: Certifique-se de que o comando foi executado corretamente:
+```bash
+# Verifique se você está no diretório correto
+pwd
+
+# Tente novamente
+source .venv/bin/activate
+```
+
+### Problemas com dependências
+
+**Problema**: `pip: command not found`  
+**Solução**: O venv não está ativado. Execute:
+```bash
+source .venv/bin/activate  # Linux/macOS
+.venv\Scripts\activate     # Windows
+```
+
+**Problema**: Erro ao instalar scikit-fuzzy  
+**Solução**: Atualize pip primeiro:
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### Executar novamente após fechar o terminal
+
+```bash
+# 1. Navegue para o diretório do projeto
+cd /home/soethe/codeneed_workspace/fuzzy-learn
+
+# 2. Ative o venv
+source .venv/bin/activate  # Linux/macOS
+.venv\Scripts\activate     # Windows
+
+# 3. Execute a aplicação
+streamlit run src/app.py
+```
 
 ## 🤝 Contribuições
 
