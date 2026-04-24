@@ -51,6 +51,47 @@ O aplicativo abrirá em `http://localhost:8501`
 deactivate
 ```
 
+## 🐳 Alternativa: Executar com Docker
+
+Se preferir usar Docker, siga os passos abaixo:
+
+### 1. Build e execute:
+```bash
+docker-compose up --build
+```
+
+### 2. Acesse em seu navegador:
+```
+http://localhost:8501
+```
+
+### 3. Para parar:
+```bash
+docker-compose down
+```
+
+### Comandos úteis com Docker:
+
+- **Logs em tempo real:**
+  ```bash
+  docker-compose logs -f
+  ```
+
+- **Rebuild sem cache:**
+  ```bash
+  docker-compose up --build --no-cache
+  ```
+
+- **Remover volumes:**
+  ```bash
+  docker-compose down -v
+  ```
+
+- **Executar bash no container:**
+  ```bash
+  docker-compose exec fuzzy-learn bash
+  ```
+
 ## 📖 Como Usar
 
 ### 1. **Conjuntos Fuzzy**

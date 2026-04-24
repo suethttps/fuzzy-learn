@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  fuzzy-learn:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fuzzy-learn-app
+    ports:
+      - "8501:8501"
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+    volumes:
+      - ./src:/app/src
+      - ./utils:/app/utils
+    restart: unless-stopped
+    # Remova as linhas abaixo se quiser rodar em produção
+    stdin_open: true
+    tty: true
