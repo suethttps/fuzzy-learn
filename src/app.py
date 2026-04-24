@@ -9,6 +9,64 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.fuzzy_logic import FuzzySystem, HeightPersistenceSystem
 
+
+class ConjuntoFuzzy:
+    def __init__(self, nome: str, elementos: dict):
+        self.nome = nome
+        self.elementos = elementos
+    
+    def __str__(self):
+        items = [f"{grau}/{elem}" for elem, grau in self.elementos.items()]
+        return f"{self.nome} = {{ {', '.join(items)} }}"
+    
+    def suporte(self):
+        return [elem for elem, grau in self.elementos.items() if grau > 0]
+    
+    def nucleo(self):
+        return [elem for elem, grau in self.elementos.items() if grau == 1]
+    
+    def cardinalidade(self):
+        return sum(self.elementos.values())
+    
+    def cardinalidade_escalar(self):
+        if len(self.elementos) == 0:
+            return 0
+        return self.cardinalidade() / len(self.elementos)
+    
+    def complemento(self):
+        novo_elementos = {elem: 1 - grau for elem, grau in self.elementos.items()}
+        return ConjuntoFuzzy(f"{self.nome}'", novo_elementos)
+    
+    def uniao(self, outro):
+        todos_elems = set(self.elementos.keys()) | set(outro.elementos.keys())
+        novo_elementos = {}
+        for elem in todos_elems:
+            grau_a = self.elementos.get(elem, 0)
+            grau_b = outro.elementos.get(elem, 0)
+            novo_elementos[elem] = max(grau_a, grau_b)
+        return ConjuntoFuzzy(f"({self.nome} ∪ {outro.nome})", novo_elementos)
+    
+    def intersecao(self, outro):
+        todos_elems = set(self.elementos.keys()) | set(outro.elementos.keys())
+        novo_elementos = {}
+        for elem in todos_elems:
+            grau_a = self.elementos.get(elem, 0)
+            grau_b = outro.elementos.get(elem, 0)
+            novo_elementos[elem] = min(grau_a, grau_b)
+        return ConjuntoFuzzy(f"({self.nome} ∩ {outro.nome})", novo_elementos)
+    
+    def potencia(self, p):
+        novo_elementos = {elem: grau ** p for elem, grau in self.elementos.items()}
+        return ConjuntoFuzzy(f"{self.nome}^{p}", novo_elementos)
+    
+    def multiplicacao_escalar(self, k):
+        novo_elementos = {elem: min(k * grau, 1.0) for elem, grau in self.elementos.items()}
+        return ConjuntoFuzzy(f"{k}×{self.nome}", novo_elementos)
+    
+    def alfa_corte(self, alfa):
+        novo_elementos = {elem: grau for elem, grau in self.elementos.items() if grau >= alfa}
+        return ConjuntoFuzzy(f"A_{{{alfa}}}", novo_elementos)
+
 st.set_page_config(page_title="Fuzzy Logic Explorer", layout="wide", initial_sidebar_state="expanded")
 
 st.title("🎯 Explorador de Lógica Fuzzy")
@@ -19,10 +77,269 @@ Aprenda sobre conjuntos fuzzy, funções de pertencimento e sistemas de classifi
 # Menu principal
 menu = st.sidebar.radio(
     "Escolha um tópico:",
-    ["Conjuntos Fuzzy", "Funções de Pertencimento", "Sistema de Altura e Persistência"]
+    ["Conjuntos Fuzzy", "Funções de Pertencimento", "Sistema de Altura e Persistência", "Exercícios Interativos"]
 )
 
-if menu == "Conjuntos Fuzzy":
+if menu == "Exercícios Interativos":
+    st.header("🧮 Exercícios: Operações com Conjuntos Fuzzy")
+    st.markdown("""
+    Aprenda a realizar operações com conjuntos fuzzy. Defina os elementos e seus graus de pertencimento para cada conjunto.
+    """)
+    
+    st.divider()
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📥 Definir Conjunto A")
+        elementos_a_input = st.text_area(
+            "Elementos do Conjunto A (formato: elemento:grau, ex: a:0.2, b:0.4)",
+            value="a:0.2, b:0.4, c:1.0, d:0.8, e:0.0",
+            height=100,
+            key="conjunto_a"
+        )
+    
+    with col2:
+        st.subheader("📥 Definir Conjunto B")
+        elementos_b_input = st.text_area(
+            "Elementos do Conjunto B (formato: elemento:grau, ex: a:0.0, b:0.9)",
+            value="a:0.0, b:0.9, c:0.3, d:0.2, e:0.1",
+            height=100,
+            key="conjunto_b"
+        )
+    
+    def parse_conjunto(input_str, nome):
+        elementos = {}
+        try:
+            for item in input_str.split(','):
+                item = item.strip()
+                if ':' in item:
+                    elem, grau = item.split(':')
+                    elementos[elem.strip()] = float(grau.strip())
+            return elementos
+        except:
+            st.error(f"Erro ao analisar {nome}. Use o formato: elemento:grau")
+            return {}
+    
+    elementos_a = parse_conjunto(elementos_a_input, "Conjunto A")
+    elementos_b = parse_conjunto(elementos_b_input, "Conjunto B")
+    
+    if elementos_a and elementos_b:
+        A = ConjuntoFuzzy("A", elementos_a)
+        B = ConjuntoFuzzy("B", elementos_b)
+        
+        st.divider()
+        st.subheader("📊 Conjuntos Definidos")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"**Conjunto A:**")
+            for elem, grau in A.elementos.items():
+                st.write(f"  μ_A({elem}) = {grau}")
+        
+        with col2:
+            st.markdown(f"**Conjunto B:**")
+            for elem, grau in B.elementos.items():
+                st.write(f"  μ_B({elem}) = {grau}")
+        
+        st.divider()
+        
+        operacao = st.selectbox(
+            "Selecione a operação:",
+            [
+                "Análise do Conjunto A",
+                "Análise do Conjunto B",
+                "União (A ∪ B)",
+                "Interseção (A ∩ B)",
+                "Complemento de A (A')",
+                "Complemento de B (B')",
+                "Potência (A²)",
+                "Multiplicação Escalar (k × B)",
+                "Alfa-Corte (A_α)",
+                "Ver Todas as Operações"
+            ]
+        )
+        
+        st.divider()
+        
+        if operacao == "Análise do Conjunto A":
+            st.subheader("🔍 Análise do Conjunto A")
+            
+            suporte_a = A.suporte()
+            nucleo_a = A.nucleo()
+            card_a = A.cardinalidade()
+            card_escalar_a = A.cardinalidade_escalar()
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Suporte", f"{{{', '.join(suporte_a)}}}")
+                st.caption("Elementos com grau > 0")
+            with col2:
+                st.metric("Núcleo", f"{{{', '.join(nucleo_a)}}}" if nucleo_a else "∅")
+                st.caption("Elementos com grau = 1")
+            
+            st.metric("Cardinalidade", f"{card_a:.2f}")
+            st.caption("Soma de todos os graus de pertencimento")
+            
+            st.subheader("📝 Complemento de A (A')")
+            A_complemento = A.complemento()
+            for elem, grau in A_complemento.elementos.items():
+                grau_original = A.elementos[elem]
+                st.write(f"μ_A'({elem}) = 1 - {grau_original} = {grau}")
+        
+        elif operacao == "Análise do Conjunto B":
+            st.subheader("🔍 Análise do Conjunto B")
+            
+            suporte_b = B.suporte()
+            nucleo_b = B.nucleo()
+            card_b = B.cardinalidade()
+            card_escalar_b = B.cardinalidade_escalar()
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Suporte", f"{{{', '.join(suporte_b)}}}")
+                st.caption("Elementos com grau > 0")
+            with col2:
+                st.metric("Núcleo", f"{{{', '.join(nucleo_b)}}}" if nucleo_b else "∅")
+                st.caption("Elementos com grau = 1")
+            
+            st.metric("Cardinalidade", f"{card_b:.2f}")
+            st.caption("Soma de todos os graus de pertencimento")
+            
+            st.subheader("📝 Complemento de B (B')")
+            B_complemento = B.complemento()
+            for elem, grau in B_complemento.elementos.items():
+                grau_original = B.elementos[elem]
+                st.write(f"μ_B'({elem}) = 1 - {grau_original} = {grau}")
+        
+        elif operacao == "União (A ∪ B)":
+            st.subheader("🔗 União: A ∪ B")
+            st.markdown("**Fórmula:** μ_(A∪B)(x) = max(μ_A(x), μ_B(x))")
+            
+            uniao = A.uniao(B)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**Resultado:**")
+                for elem, grau in uniao.elementos.items():
+                    grau_a = A.elementos.get(elem, 0)
+                    grau_b = B.elementos.get(elem, 0)
+                    st.write(f"{elem}: max({grau_a}, {grau_b}) = {grau}")
+            with col2:
+                st.markdown("**Expressão:**")
+                st.code(f"{uniao}")
+        
+        elif operacao == "Interseção (A ∩ B)":
+            st.subheader("🔗 Interseção: A ∩ B")
+            st.markdown("**Fórmula:** μ_(A∩B)(x) = min(μ_A(x), μ_B(x))")
+            
+            intersecao = A.intersecao(B)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**Resultado:**")
+                for elem, grau in intersecao.elementos.items():
+                    grau_a = A.elementos.get(elem, 0)
+                    grau_b = B.elementos.get(elem, 0)
+                    st.write(f"{elem}: min({grau_a}, {grau_b}) = {grau}")
+            with col2:
+                st.markdown("**Expressão:**")
+                st.code(f"{intersecao}")
+        
+        elif operacao == "Complemento de A (A')":
+            st.subheader("📝 Complemento: A'")
+            st.markdown("**Fórmula:** μ_A'(x) = 1 - μ_A(x)")
+            
+            A_complemento = A.complemento()
+            
+            for elem, grau in A_complemento.elementos.items():
+                grau_original = A.elementos[elem]
+                st.write(f"μ_A'({elem}) = 1 - {grau_original} = {grau}")
+        
+        elif operacao == "Complemento de B (B')":
+            st.subheader("📝 Complemento: B'")
+            st.markdown("**Fórmula:** μ_B'(x) = 1 - μ_B(x)")
+            
+            B_complemento = B.complemento()
+            
+            for elem, grau in B_complemento.elementos.items():
+                grau_original = B.elementos[elem]
+                st.write(f"μ_B'({elem}) = 1 - {grau_original} = {grau}")
+        
+        elif operacao == "Potência (A²)":
+            st.subheader("⚡ Potência: A²")
+            st.markdown("**Fórmula:** μ_A²(x) = (μ_A(x))²")
+            
+            C = A.potencia(2)
+            
+            for elem, grau in C.elementos.items():
+                grau_a = A.elementos[elem]
+                st.write(f"μ_A²({elem}) = ({grau_a})² = {grau}")
+        
+        elif operacao == "Multiplicação Escalar (k × B)":
+            st.subheader("✖️ Multiplicação Escalar")
+            
+            k = st.slider("Valor de k:", 0.1, 2.0, 0.5, step=0.1)
+            st.markdown(f"**Fórmula:** μ_{{k×B}}(x) = min(k × μ_B(x), 1)")
+            
+            D = B.multiplicacao_escalar(k)
+            
+            for elem, grau in D.elementos.items():
+                grau_b = B.elementos[elem]
+                st.write(f"μ_{{ {k}×B }}({elem}) = min({k} × {grau_b}, 1) = {grau}")
+        
+        elif operacao == "Alfa-Corte (A_α)":
+            st.subheader("✂️ Alfa-Corte: A_α")
+            
+            alfa = st.slider("Valor de α (alfa):", 0.0, 1.0, 0.5, step=0.1)
+            st.markdown(f"**Fórmula:** A_α = {{x ∈ X | μ_A(x) ≥ {alfa}}}")
+            
+            E = A.alfa_corte(alfa)
+            
+            st.markdown("**Elementos incluídos (grau ≥ α):**")
+            for elem in sorted(A.elementos.keys()):
+                grau = A.elementos[elem]
+                status = "✓" if grau >= alfa else "✗"
+                st.write(f"{status} {elem}: {grau} ({'incluído' if grau >= alfa else 'excluído'})")
+        
+        elif operacao == "Ver Todas as Operações":
+            st.subheader("📋 Resumo de Todas as Operações")
+            
+            suporte_a = A.suporte()
+            nucleo_a = A.nucleo()
+            card_a = A.cardinalidade()
+            suporte_b = B.suporte()
+            nucleo_b = B.nucleo()
+            card_b = B.cardinalidade()
+            uniao = A.uniao(B)
+            intersecao = A.intersecao(B)
+            A_comp = A.complemento()
+            B_comp = B.complemento()
+            C = A.potencia(2)
+            
+            with st.expander("📊 CONJUNTO A", expanded=True):
+                st.write(f"**Suporte:** {{{', '.join(suporte_a)}}}")
+                st.write(f"**Núcleo:** {{{', '.join(nucleo_a)}}}")
+                st.write(f"**Cardinalidade:** {card_a:.2f}")
+                st.write(f"**Complemento:** {A_comp}")
+            
+            with st.expander("📊 CONJUNTO B", expanded=True):
+                st.write(f"**Suporte:** {{{', '.join(suporte_b)}}}")
+                st.write(f"**Núcleo:** {{{', '.join(nucleo_b) if nucleo_b else 'vazio'}}}")
+                st.write(f"**Cardinalidade:** {card_b:.2f}")
+                st.write(f"**Complemento:** {B_comp}")
+            
+            with st.expander("🔗 OPERAÇÕES", expanded=True):
+                st.write(f"**União (A ∪ B):** {uniao}")
+                st.write(f"**Interseção (A ∩ B):** {intersecao}")
+                st.write(f"**A²:** {C}")
+                st.write(f"**0.5 × B:** {B.multiplicacao_escalar(0.5)}")
+                st.write(f"**A₀.₅ (corte):** {A.alfa_corte(0.5)}")
+    
+    else:
+        st.warning("⚠️ Defina ambos os conjuntos A e B para continuar.")
+
+elif menu == "Conjuntos Fuzzy":
     st.header("📊 Entendendo Conjuntos Fuzzy")
     
     col1, col2 = st.columns(2)
