@@ -1,0 +1,12 @@
+.git
+.github
+.venv
+__pycache__
+*.py[cod]
+*.egg-info
+.cache
+.streamlit
+.env
+*.log
+CONVERSATION_EXPORT.md
+docker-compose.yml

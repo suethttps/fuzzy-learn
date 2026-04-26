@@ -1,0 +1,99 @@
+name: Deploy AWS ECS Fargate
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-ecs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: fuzzy-learn
+  ECS_CLUSTER: fuzzy-learn-cluster
+  ECS_SERVICE: fuzzy-learn-service
+  ECS_TASK_DEFINITION: infra/ecs/task-definition.json
+  CONTAINER_NAME: fuzzy-learn-app
+
+jobs:
+  deploy:
+    name: Build and deploy to ECS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID_SECRET: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCOUNT_ID_SECRET: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          if [ -z "${AWS_ACCESS_KEY_ID_SECRET}" ] || [ -z "${AWS_SECRET_ACCESS_KEY_SECRET}" ] || [ -z "${AWS_ACCOUNT_ID_SECRET}" ]; then
+            echo "Missing required GitHub Secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY or AWS_ACCOUNT_ID."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ secrets.AWS_ACCOUNT_ID }}
+          mask-password: true
+
+      - name: Build, tag and push Docker image
+        id: build-image
+        shell: bash
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          LATEST_IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+
+          docker build --pull --tag "${IMAGE_URI}" --tag "${LATEST_IMAGE_URI}" .
+          docker push "${IMAGE_URI}"
+          docker push "${LATEST_IMAGE_URI}"
+
+          echo "image=${IMAGE_URI}" >> "${GITHUB_OUTPUT}"
+
+      - name: Replace task definition placeholders
+        shell: bash
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          cp "${ECS_TASK_DEFINITION}" task-definition.aws.json
+          sed -i "s|AWS_ACCOUNT_ID_PLACEHOLDER|${AWS_ACCOUNT_ID}|g" task-definition.aws.json
+          sed -i "s|AWS_REGION_PLACEHOLDER|${AWS_REGION}|g" task-definition.aws.json
+
+      - name: Render task definition with new image
+        id: render-task-definition
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.aws.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Register task definition and deploy ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-task-definition.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
