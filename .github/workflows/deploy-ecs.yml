@@ -95,6 +95,4 @@ jobs:
           task-definition: ${{ steps.render-task-definition.outputs.task-definition }}
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
-          # TODO : Fix ajustar isso está assim somente para eu testar o deploy, mas depois eu tenho que ajustar isso o problema é que ou a rede não consegue acessar o check ou a janela de tempo está mt curta.
-          wait-for-service-stability: false
-          force-new-deployment: true
+          wait-for-service-stability: true
