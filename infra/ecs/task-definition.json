@@ -11,7 +11,7 @@
   "executionRoleArn": "arn:aws:iam::AWS_ACCOUNT_ID_PLACEHOLDER:role/ecsTaskExecutionRole",
   "containerDefinitions": [
     {
-      "name": "fuzzy-learn-app",
+      "name": "fuzzy-learn",
       "image": "AWS_ACCOUNT_ID_PLACEHOLDER.dkr.ecr.AWS_REGION_PLACEHOLDER.amazonaws.com/fuzzy-learn:latest",
       "essential": true,
       "portMappings": [

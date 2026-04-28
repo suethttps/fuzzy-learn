@@ -20,7 +20,7 @@ env:
   ECS_CLUSTER: fuzzy-learn-cluster
   ECS_SERVICE: fuzzy-learn-service
   ECS_TASK_DEFINITION: infra/ecs/task-definition.json
-  CONTAINER_NAME: fuzzy-learn-app
+  CONTAINER_NAME: fuzzy-learn
 
 jobs:
   deploy:
