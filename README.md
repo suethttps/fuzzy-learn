@@ -320,8 +320,8 @@ Outbound: All traffic
 1. Acesse `Amazon ECS` → `Task definitions` → `Create new task definition`.
 2. Launch type: `AWS Fargate`.
 3. Task definition family: `fuzzy-learn-task`.
-4. CPU: `.25 vCPU`.
-5. Memory: `.5 GB`.
+4. CPU: `1 vCPU`.
+5. Memory: `2 GB`.
 6. Task execution role: `ecsTaskExecutionRole`.
 7. Container name: `fuzzy-learn-app`.
 8. Image URI: `AWS_ACCOUNT_ID.dkr.ecr.AWS_REGION.amazonaws.com/fuzzy-learn:latest`.
