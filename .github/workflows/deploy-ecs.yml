@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: sa-east-1
   ECR_REPOSITORY: fuzzy-learn
   ECS_CLUSTER: fuzzy-learn-cluster
   ECS_SERVICE: fuzzy-learn-service
