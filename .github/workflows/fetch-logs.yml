@@ -1,0 +1,99 @@
+name: Fetch CloudWatch Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: "Janela de tempo (ex: 15m, 1h, 24h, 7d)"
+        required: true
+        default: "1h"
+      filter_pattern:
+        description: "Filter pattern do CloudWatch (vazio = sem filtro). Ex: ERROR, \"?ERROR ?Exception\""
+        required: false
+        default: ""
+      log_stream_prefix:
+        description: "Prefixo de log stream (vazio = todos). Ex: ecs/fuzzy-learn"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: sa-east-1
+  LOG_GROUP: /ecs/fuzzy-learn
+
+jobs:
+  fetch-logs:
+    name: Fetch CloudWatch logs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate required secrets
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID_SECRET: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -z "${AWS_ACCESS_KEY_ID_SECRET}" ] || [ -z "${AWS_SECRET_ACCESS_KEY_SECRET}" ]; then
+            echo "Missing required GitHub Secrets: AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Tail CloudWatch logs
+        shell: bash
+        env:
+          SINCE: ${{ inputs.since }}
+          FILTER_PATTERN: ${{ inputs.filter_pattern }}
+          LOG_STREAM_PREFIX: ${{ inputs.log_stream_prefix }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p logs
+          OUT="logs/cloudwatch-${LOG_GROUP//\//_}-$(date -u +%Y%m%dT%H%M%SZ).log"
+
+          ARGS=(logs tail "${LOG_GROUP}" --since "${SINCE}" --format short)
+
+          if [ -n "${FILTER_PATTERN}" ]; then
+            ARGS+=(--filter-pattern "${FILTER_PATTERN}")
+          fi
+
+          if [ -n "${LOG_STREAM_PREFIX}" ]; then
+            ARGS+=(--log-stream-name-prefix "${LOG_STREAM_PREFIX}")
+          fi
+
+          echo "Running: aws ${ARGS[*]}"
+          aws "${ARGS[@]}" | tee "${OUT}"
+
+          echo "OUT_FILE=${OUT}" >> "${GITHUB_ENV}"
+
+          {
+            echo "## CloudWatch logs"
+            echo ""
+            echo "- Log group: \`${LOG_GROUP}\`"
+            echo "- Region: \`${AWS_REGION}\`"
+            echo "- Since: \`${SINCE}\`"
+            echo "- Filter: \`${FILTER_PATTERN:-<none>}\`"
+            echo "- Stream prefix: \`${LOG_STREAM_PREFIX:-<none>}\`"
+            echo "- Lines: \`$(wc -l < "${OUT}")\`"
+            echo ""
+            echo "### Últimas 200 linhas"
+            echo ""
+            echo '```'
+            tail -n 200 "${OUT}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload logs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudwatch-logs
+          path: logs/
+          retention-days: 14
