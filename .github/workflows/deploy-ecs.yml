@@ -3,7 +3,6 @@ name: Deploy AWS ECS Fargate
 on:
   push:
     branches:
-      - main
       - master
   workflow_dispatch:
 
