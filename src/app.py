@@ -1,12 +1,13 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.fuzzy_logic import FuzzySystem, HeightPersistenceSystem
+
+st.set_page_config(page_title="Fuzzy Logic Explorer", layout="wide", initial_sidebar_state="expanded")
 
 
 class ConjuntoFuzzy:
@@ -66,7 +67,76 @@ class ConjuntoFuzzy:
         novo_elementos = {elem: grau for elem, grau in self.elementos.items() if grau >= alfa}
         return ConjuntoFuzzy(f"A_{{{alfa}}}", novo_elementos)
 
-st.set_page_config(page_title="Fuzzy Logic Explorer", layout="wide", initial_sidebar_state="expanded")
+
+@st.cache_data(show_spinner=False)
+def get_height_membership_data():
+    x = np.arange(150, 210, 1)
+    baixa = np.maximum(1 - np.abs(x - 160) / 15, 0)
+    media = np.maximum(1 - np.abs(x - 175) / 15, 0)
+    alta = np.maximum(1 - np.abs(x - 190) / 15, 0)
+    return x, baixa, media, alta
+
+
+@st.cache_data(show_spinner=False)
+def get_membership_function_data(funcao_tipo):
+    x = np.arange(0, 100, 0.1)
+
+    if funcao_tipo == "Triangular":
+        y = np.maximum(1 - np.abs(x - 50) / 25, 0)
+        descricao = "**Triangular**: Forma de triângulo. Simples e computacionalmente eficiente."
+        params = "Parâmetros: mín, pico, máx"
+    elif funcao_tipo == "Trapezoidal":
+        y = np.maximum(1 - np.maximum(
+            np.maximum(40 - x, 0) / 15,
+            np.maximum(x - 60, 0) / 15
+        ), 0)
+        descricao = "**Trapezoidal**: Forma de trapézio. Representa valores com patamar constante."
+        params = "Parâmetros: a, b, c, d (onde b-a e d-c são os lados)"
+    elif funcao_tipo == "Gaussiana":
+        sigma = 15
+        y = np.exp(-((x - 50) ** 2) / (2 * sigma ** 2))
+        descricao = "**Gaussiana**: Forma de sino. Suave e simétrica."
+        params = f"Parâmetros: média ({50}), desvio padrão ({sigma})"
+    else:
+        y = 1 / (1 + np.exp(-(x - 50) / 10))
+        descricao = "**Sigmoide**: Forma de S. Representa transição gradual."
+        params = "Parâmetros: ponto de inflexão (x₀), inclinação (a)"
+
+    return x, y, descricao, params
+
+
+@st.cache_data(show_spinner=False)
+def get_all_membership_functions_data():
+    x = np.arange(0, 100, 0.1)
+    y_tri = np.maximum(1 - np.abs(x - 50) / 25, 0)
+    y_trap = np.maximum(1 - np.maximum(
+        np.maximum(40 - x, 0) / 15,
+        np.maximum(x - 60, 0) / 15
+    ), 0)
+    sigma = 15
+    y_gauss = np.exp(-((x - 50) ** 2) / (2 * sigma ** 2))
+    y_sig = 1 / (1 + np.exp(-(x - 50) / 10))
+    return x, y_tri, y_trap, y_gauss, y_sig
+
+
+@st.cache_resource(show_spinner=False)
+def get_height_persistence_system():
+    return HeightPersistenceSystem()
+
+
+@st.cache_data(show_spinner=False)
+def get_decision_matrix():
+    system = get_height_persistence_system()
+    alturas_teste = [140, 160, 175, 190, 205]
+    persistencias_teste = [1, 3, 5, 7, 9]
+    matriz_resultados = np.zeros((len(persistencias_teste), len(alturas_teste)))
+
+    for i, p in enumerate(persistencias_teste):
+        for j, a in enumerate(alturas_teste):
+            res = system.evaluate(a, p)
+            matriz_resultados[i, j] = res['resultado']
+
+    return alturas_teste, persistencias_teste, matriz_resultados
 
 st.title("🎯 Explorador de Lógica Fuzzy")
 st.markdown("""
@@ -356,24 +426,34 @@ elif menu == "Conjuntos Fuzzy":
     
     with col2:
         # Visualização de conjunto fuzzy
-        x = np.arange(150, 210, 1)
-        baixa = np.maximum(1 - np.abs(x - 160) / 15, 0)
-        media = np.maximum(1 - np.abs(x - 175) / 15, 0)
-        alta = np.maximum(1 - np.abs(x - 190) / 15, 0)
-        
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.plot(x, baixa, label='Baixa', linewidth=2, color='#FF6B6B')
-        ax.plot(x, media, label='Média', linewidth=2, color='#4ECDC4')
-        ax.plot(x, alta, label='Alta', linewidth=2, color='#45B7D1')
-        ax.fill_between(x, baixa, alpha=0.3, color='#FF6B6B')
-        ax.fill_between(x, media, alpha=0.3, color='#4ECDC4')
-        ax.fill_between(x, alta, alpha=0.3, color='#45B7D1')
-        ax.set_xlabel('Altura (cm)', fontsize=12)
-        ax.set_ylabel('Grau de Pertencimento', fontsize=12)
-        ax.set_title('Conjuntos Fuzzy: Classificação de Altura', fontsize=14, fontweight='bold')
-        ax.legend(fontsize=11)
-        ax.grid(True, alpha=0.3)
-        st.pyplot(fig)
+        x, baixa, media, alta = get_height_membership_data()
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=x, y=baixa,
+            mode='lines', name='Baixa',
+            line=dict(color='#FF6B6B', width=2),
+            fill='tozeroy', fillcolor='rgba(255, 107, 107, 0.3)'
+        ))
+        fig.add_trace(go.Scatter(
+            x=x, y=media,
+            mode='lines', name='Média',
+            line=dict(color='#4ECDC4', width=2),
+            fill='tozeroy', fillcolor='rgba(78, 205, 196, 0.3)'
+        ))
+        fig.add_trace(go.Scatter(
+            x=x, y=alta,
+            mode='lines', name='Alta',
+            line=dict(color='#45B7D1', width=2),
+            fill='tozeroy', fillcolor='rgba(69, 183, 209, 0.3)'
+        ))
+        fig.update_layout(
+            title="Conjuntos Fuzzy: Classificação de Altura",
+            xaxis_title="Altura (cm)",
+            yaxis_title="Grau de Pertencimento",
+            height=400,
+            hovermode='x unified'
+        )
+        st.plotly_chart(fig, use_container_width=True)
     
     # Teste interativo
     st.divider()
@@ -395,6 +475,7 @@ elif menu == "Conjuntos Fuzzy":
         st.metric("Pertencimento em 'Alta'", f"{pertencimento_alta:.2%}")
     
     # Gráfico interativo
+    x, baixa, media, alta = get_height_membership_data()
     fig = go.Figure()
     
     fig.add_trace(go.Scatter(
@@ -445,31 +526,7 @@ elif menu == "Funções de Pertencimento":
             ["Triangular", "Trapezoidal", "Gaussiana", "Sigmoide"]
         )
     
-    x = np.arange(0, 100, 0.1)
-    
-    if funcao_tipo == "Triangular":
-        y = np.maximum(1 - np.abs(x - 50) / 25, 0)
-        descricao = "**Triangular**: Forma de triângulo. Simples e computacionalmente eficiente."
-        params = "Parâmetros: mín, pico, máx"
-        
-    elif funcao_tipo == "Trapezoidal":
-        y = np.maximum(1 - np.maximum(
-            np.maximum(40 - x, 0) / 15,
-            np.maximum(x - 60, 0) / 15
-        ), 0)
-        descricao = "**Trapezoidal**: Forma de trapézio. Representa valores com patamar constante."
-        params = "Parâmetros: a, b, c, d (onde b-a e d-c são os lados)"
-        
-    elif funcao_tipo == "Gaussiana":
-        sigma = 15
-        y = np.exp(-((x - 50) ** 2) / (2 * sigma ** 2))
-        descricao = "**Gaussiana**: Forma de sino. Suave e simétrica."
-        params = f"Parâmetros: média ({50}), desvio padrão ({sigma})"
-        
-    elif funcao_tipo == "Sigmoide":
-        y = 1 / (1 + np.exp(-(x - 50) / 10))
-        descricao = "**Sigmoide**: Forma de S. Representa transição gradual."
-        params = "Parâmetros: ponto de inflexão (x₀), inclinação (a)"
+    x, y, descricao, params = get_membership_function_data(funcao_tipo)
     
     with col2:
         st.markdown(descricao)
@@ -498,14 +555,7 @@ elif menu == "Funções de Pertencimento":
     st.divider()
     st.subheader("📊 Comparação de Todas as Funções")
     
-    y_tri = np.maximum(1 - np.abs(x - 50) / 25, 0)
-    y_trap = np.maximum(1 - np.maximum(
-        np.maximum(40 - x, 0) / 15,
-        np.maximum(x - 60, 0) / 15
-    ), 0)
-    sigma = 15
-    y_gauss = np.exp(-((x - 50) ** 2) / (2 * sigma ** 2))
-    y_sig = 1 / (1 + np.exp(-(x - 50) / 10))
+    x, y_tri, y_trap, y_gauss, y_sig = get_all_membership_functions_data()
     
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=x, y=y_tri, mode='lines', name='Triangular', 
@@ -537,7 +587,7 @@ elif menu == "Sistema de Altura e Persistência":
     - **Persistência**: Dedicação do aluno (0-10)
     """)
     
-    system = HeightPersistenceSystem()
+    system = get_height_persistence_system()
     
     col1, col2 = st.columns(2)
     
@@ -723,15 +773,7 @@ elif menu == "Sistema de Altura e Persistência":
     st.divider()
     st.subheader("📋 Matriz de Decisão")
     
-    alturas_teste = [140, 160, 175, 190, 205]
-    persistencias_teste = [1, 3, 5, 7, 9]
-    
-    matriz_resultados = np.zeros((len(persistencias_teste), len(alturas_teste)))
-    
-    for i, p in enumerate(persistencias_teste):
-        for j, a in enumerate(alturas_teste):
-            res = system.evaluate(a, p)
-            matriz_resultados[i, j] = res['resultado']
+    alturas_teste, persistencias_teste, matriz_resultados = get_decision_matrix()
     
     fig_matriz = go.Figure(data=go.Heatmap(
         z=matriz_resultados,
